@@ -1,10 +1,14 @@
 # CruxOS
 
-A recruiter-friendly full-stack project that turns personal training and recovery data into **explainable climbing insights**.
+CruxOS is a full-stack climbing performance tracker that turns training and recovery logs into **explainable, comparison-based insights**.
 
-## Overview
+It is designed to answer one question clearly:
 
-CruxOS is a single-user web app for logging:
+> **What conditions tend to lead to better or worse climbing sessions?**
+
+## What It Is
+
+CruxOS is a single-user web app for tracking:
 - climbing sessions
 - sleep
 - nutrition
@@ -12,32 +16,32 @@ CruxOS is a single-user web app for logging:
 - hangboard sessions
 - finger rehab / pain
 
-The app’s core value is a **28-day Performance Insight Report** that compares conditions such as higher sleep vs lower sleep or high finger stress vs controlled load, then explains how those conditions are associated with climbing performance.
+The core experience is the **28-day Performance Insight Report**, which compares conditions like higher sleep vs lower sleep or high finger stress vs controlled load, then quantifies how those conditions are associated with climbing performance.
 
-The product is intentionally scoped as a realistic MVP: focused, polished, and technically credible without unnecessary complexity.
+## Why It’s Technically Interesting
 
-## Problem It Solves
+This project is more than a logging app. It demonstrates:
 
-Climbers often track recovery, training load, and performance across scattered notes, spreadsheets, or separate apps. That makes it hard to answer a simple question:
+- **Multi-domain data modeling** across training, recovery, and performance
+- **Time-window analysis** over rolling 28-day periods
+- **Explainable analytics** with deterministic condition-vs-condition comparisons
+- **Full-stack ownership** across UI, data layer, report generation, seeding, and tests
+- **Product judgment** through a focused MVP with one clear centerpiece feature
 
-> **What conditions tend to lead to better or worse climbing sessions?**
+In interview terms, CruxOS shows the ability to take an ambiguous real-world problem, define a useful product, and deliver a system that produces understandable outputs instead of black-box results.
 
-This project solves that by combining recovery and training inputs into a single system and generating **deterministic, human-readable insights** anchored on one performance signal:
+## Main Features
 
-**Hardest grade sent per session**.
-
-## Key Features
-
-- **Single-user climbing performance dashboard**
-- **Fast manual logging** for climbing, sleep, nutrition, bodyweight, hangboard, and rehab
+- **Dashboard** with recent sessions, top insights, and key recovery metrics
+- **Logging hub** for climbing, sleep, nutrition, bodyweight, hangboard, and rehab
+- **History view** for recent training and recovery entries
 - **28-day Performance Insight Report** with:
-  - condition-vs-condition comparisons
+  - clear condition comparisons
   - quantified average-grade differences
-  - clear thresholds
-  - concise explanations
-- **Seeded demo data** so the app is meaningful immediately on first load
-- **Responsive UI** optimized for a clean browser-based experience
-- **Deterministic analytics** — no ML, no black-box scoring
+  - thresholds
+  - concise human-readable explanations
+- **Seeded demo data** so the app is immediately meaningful on first load
+- **End-to-end tested core flows** for logging and report generation
 
 ## Architecture Summary
 
@@ -49,57 +53,24 @@ This project solves that by combining recovery and training inputs into a single
 - **Validation:** Zod
 - **Testing:** Vitest + Playwright
 
-### Core Design Choices
+### Design Choices
 - **One anchor metric:** hardest grade sent per session
-- **Explainability over complexity:** rule-based insight engine instead of ML
-- **Manual-first MVP:** no external integrations, social features, or native apps
-- **Relational time-series modeling:** inputs are keyed by date/session so recovery and performance can be aligned over rolling windows
+- **Deterministic analytics:** no ML, no opaque scoring
+- **Manual-first MVP:** no external integrations or social features
+- **Relational time-series model:** inputs align by date/session for report generation
 
-### Main App Areas
-- `/` — dashboard and top insights
-- `/log` — logging hub for all tracked domains
-- `/history` — recent training/recovery history
-- `/reports/performance` — 28-day insight report
+### Key Routes
+- `/` — dashboard
+- `/log` — logging hub
+- `/history` — recent entries
+- `/reports/performance` — 28-day report
 
-## Screenshots
-
-> Add real screenshots here after final UI polish.
-
-- `docs/screenshots/dashboard.png` — Dashboard overview
-- `docs/screenshots/logging-hub.png` — Logging hub
-- `docs/screenshots/performance-report.png` — 28-day insight report
-
-Placeholder example:
-
-```md
-![Dashboard](docs/screenshots/dashboard.png)
-![Logging Hub](docs/screenshots/logging-hub.png)
-![Performance Report](docs/screenshots/performance-report.png)
-```
-
-## How to Run Locally
-
-### 1. Install dependencies
+## Run Locally
 
 ```bash
 npm install
-```
-
-### 2. Sync the database schema
-
-```bash
 npm run db:push
-```
-
-### 3. Seed demo data
-
-```bash
 npm run db:seed
-```
-
-### 4. Start the app
-
-```bash
 npm run dev
 ```
 
@@ -109,7 +80,84 @@ Open:
 http://localhost:3000
 ```
 
-## Verification Commands
+
+## Deployment
+
+### Recommended Path
+
+The simplest production-ready deployment for CruxOS is:
+
+- **one container**
+- **one persistent volume**
+- **SQLite via Prisma**
+
+This keeps the app aligned with its current scope: single-user, low-ops, and easy to explain.
+
+### Required Environment Variables
+
+- `DATABASE_URL` — required
+- `PORT` — optional, defaults to `3000`
+
+Recommended production value:
+
+```text
+DATABASE_URL=file:/data/cruxos.db
+PORT=3000
+```
+
+### Easiest Deploy Command Set
+
+Build the image:
+
+```bash
+docker build -t cruxos .
+```
+
+Create a persistent Docker volume:
+
+```bash
+docker volume create cruxos_data
+```
+
+Run CruxOS:
+
+```bash
+docker run -d   --name cruxos   -p 3000:3000   -e DATABASE_URL="file:/data/cruxos.db"   -e PORT=3000   -v cruxos_data:/data   cruxos
+```
+
+### What the Container Does on Startup
+
+The production start script will:
+1. run `prisma db push`
+2. start Next.js in production mode
+
+That means no manual migration step is required for this MVP deployment path.
+
+### Optional Demo Data for a First Deploy
+
+If you want the hosted app to open with meaningful sample data, run this once after the container starts:
+
+```bash
+docker exec cruxos npm run db:seed
+```
+
+> Note: the seed script resets demo data intentionally. Use it for portfolio/demo environments, not for preserving personal production logs.
+
+### Good Hosting Targets
+
+This container-first setup works best on platforms where you can mount persistent storage, for example:
+- a small VPS
+- Fly.io with a mounted volume
+- Render or Railway only if you attach persistent disk/storage
+
+### Repo Files Added for Deployment
+
+- `Dockerfile`
+- `.dockerignore`
+- `.env.example`
+- `scripts/start-production.sh`
+
+## Verification
 
 ```bash
 npm run lint
@@ -119,21 +167,32 @@ npm run build
 npm run test:e2e
 ```
 
-## Why This Project Is Technically Interesting
+## Screenshots
 
-This project is interesting because it demonstrates more than CRUD:
+### Dashboard
 
-- **Domain modeling:** multiple related data types across training, recovery, and performance
-- **Time-window analysis:** rolling 28-day comparisons between behaviors and outcomes
-- **Explainable analytics:** each insight compares two conditions and quantifies the difference
-- **Full-stack ownership:** UI, server actions, database modeling, seeded demo flows, and automated tests
-- **Strong product judgment:** narrow scope, clear user value, and a polished centerpiece feature
+![CruxOS Dashboard](docs/screenshots/dashboard.png)
 
-It is designed to show that the builder can:
-- structure an ambiguous real-world problem
-- choose a focused MVP
-- build an end-to-end data product
-- communicate results in a way users can actually understand
+### Logging Hub
+
+![CruxOS Logging Hub](docs/screenshots/logging-hub.png)
+
+### History View
+
+![CruxOS History](docs/screenshots/history.png)
+
+### Performance Insight Report
+
+![CruxOS Performance Report](docs/screenshots/report.png)
+
+## Problem It Solves
+
+Climbers often track recovery and training data in separate tools, which makes it difficult to understand how habits actually relate to performance.
+
+CruxOS solves that by combining the inputs into one system and generating a report that is:
+- **interpretable**
+- **quantified**
+- **easy to explain**
 
 ## Current Scope
 
@@ -142,12 +201,12 @@ It is designed to show that the builder can:
 - dashboard
 - history view
 - insight report
-- demo data
-- unit + end-to-end coverage for core flows
+- seeded demo data
+- unit and end-to-end coverage for core flows
 
-### Explicitly Out of Scope
+### Out of Scope
 - machine learning / prediction
-- wearable or health-platform integrations
+- wearable integrations
 - multi-user / social features
 - native mobile apps
 - complex infrastructure
@@ -155,11 +214,11 @@ It is designed to show that the builder can:
 ## Future Improvements
 
 - richer report evidence panels
-- screenshot assets for portfolio presentation
+- real screenshot assets for portfolio presentation
 - authentication
 - export / sharing
 - additional deterministic insight rules
 
 ---
 
-If you’re reviewing this as a portfolio project, the best place to start is the **dashboard**, then the **28-day Performance Insight Report**.
+If you are reviewing CruxOS quickly, start with the **dashboard**, then open the **28-day Performance Insight Report**.
