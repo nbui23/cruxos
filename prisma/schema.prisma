@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ClimbingSession {
+  id              String   @id @default(cuid())
+  sessionDate     DateTime
+  discipline      String?
+  gradeScale      String   @default("BOULDER_V")
+  hardestGrade    String
+  normalizedGrade Int
+  sessionRpe      Int?
+  sendCount       Int?
+  attemptCount    Int?
+  durationMinutes Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([sessionDate])
+}
+
+model SleepEntry {
+  id           String   @id @default(cuid())
+  entryDate    DateTime @unique
+  hours        Float
+  qualityScore Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model NutritionEntry {
+  id           String   @id @default(cuid())
+  entryDate    DateTime @unique
+  proteinGrams Int
+  calories     Int?
+  hydration    Int?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model BodyweightEntry {
+  id        String   @id @default(cuid())
+  entryDate DateTime @unique
+  weightLbs Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HangboardSession {
+  id              String   @id @default(cuid())
+  sessionDate     DateTime
+  protocolName    String
+  durationMinutes Int?
+  intensity       Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([sessionDate])
+}
+
+model FingerRehabEntry {
+  id             String   @id @default(cuid())
+  entryDate      DateTime @unique
+  painScore      Int
+  rehabCompleted Boolean  @default(false)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
