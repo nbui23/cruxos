@@ -1,7 +1,7 @@
 import { differenceInCalendarDays, formatISO, startOfDay, subDays } from 'date-fns';
 import type { ClimbingSession, FingerRehabEntry, HangboardSession, NutritionEntry, SleepEntry } from '@prisma/client';
 
-import type { InsightCard, PerformanceReport } from './types';
+import type { InsightCard, PerformanceReport, WeeklyGuidance } from './types';
 
 type ReportInput = {
   reportEnd: Date;
@@ -13,7 +13,6 @@ type ReportInput = {
 };
 
 const average = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0);
-
 const averageGrade = (sessions: ClimbingSession[]) => average(sessions.map((session) => session.normalizedGrade));
 
 function formatDelta(delta: number) {
@@ -102,6 +101,10 @@ function buildSleepInsight(sessions: ClimbingSession[], sleepEntries: SleepEntry
       rightAverage: tiredAverage,
       threshold: 'prior-night sleep ≥ 7.0h',
     }),
+    sampleSize: {
+      leftCount: rested.length,
+      rightCount: tired.length,
+    },
   };
 }
 
@@ -133,6 +136,10 @@ function buildPainInsight(sessions: ClimbingSession[], rehabEntries: FingerRehab
       rightAverage: normalAverage,
       threshold: 'pain ≥ 5 or 2+ hangboard sessions in the prior 3 days',
     }),
+    sampleSize: {
+      leftCount: highLoad.length,
+      rightCount: normalLoad.length,
+    },
   };
 }
 
@@ -164,12 +171,65 @@ function buildProteinInsight(sessions: ClimbingSession[], nutritionEntries: Nutr
       rightAverage: lowProteinAverage,
       threshold: 'prior-day protein ≥ 110g',
     }),
+    sampleSize: {
+      leftCount: highProtein.length,
+      rightCount: lowProtein.length,
+    },
+  };
+}
+
+function buildWeeklyGuidance(sessions: ClimbingSession[], leadInsight: InsightCard | undefined): WeeklyGuidance {
+  const spanDays = sessions.length > 1 ? differenceInCalendarDays(sessions.at(-1)!.sessionDate, sessions[0]!.sessionDate) : 0;
+
+  if (sessions.length < 6) {
+    return {
+      status: 'needs-more-data',
+      title: 'Not enough data yet',
+      summary: 'CruxOS needs a little more recent history before it should tell you what to repeat or avoid this week.',
+      evidence: ['A few more climbing sessions are needed before the report can compare stronger vs weaker conditions honestly.'],
+      nextStep: 'Keep logging your next sessions plus sleep, protein, and finger-state context.',
+    };
+  }
+
+  if (spanDays < 14) {
+    return {
+      status: 'needs-more-data',
+      title: 'Stretch the sample across more weeks',
+      summary: 'The recent sample is still too compressed. CruxOS waits for at least a 2-week spread before making a weekly recommendation.',
+      evidence: ['Weekly guidance is withheld until the app can compare sessions across more than one short cluster.'],
+      nextStep: 'Keep logging for another week so the recommendation is based on a real weekly pattern.',
+    };
+  }
+
+  if (!leadInsight || leadInsight.id === 'needs-more-data') {
+    return {
+      status: 'needs-more-data',
+      title: 'The pattern is not trustworthy yet',
+      summary: 'Recent sessions do not yet show a strong, repeatable difference across recovery or load conditions.',
+      evidence: ['CruxOS is withholding the recommendation rather than bluffing confidence.'],
+      nextStep: 'Add sleep, protein, and finger-state context for the next few sessions to unlock a clearer comparison.',
+    };
+  }
+
+  const nextStep =
+    leadInsight.impact === 'positive'
+      ? 'Repeat the stronger setup above before your next hard session and keep logging so the trend can be retested.'
+      : 'Avoid stacking your next hard day under the weaker condition above unless the next few logs overturn the trend.';
+
+  return {
+    status: 'ready',
+    title: 'What to repeat or avoid this week',
+    summary: `${leadInsight.summary} Treat this as a tendency, not a guarantee.`,
+    evidence: leadInsight.evidence,
+    nextStep,
   };
 }
 
 export function buildPerformanceReport(input: ReportInput): PerformanceReport {
   const reportStart = startOfDay(subDays(input.reportEnd, 27));
-  const sessions = input.sessions.filter((session) => session.sessionDate >= reportStart);
+  const sessions = input.sessions
+    .filter((session) => session.sessionDate >= reportStart)
+    .sort((left, right) => left.sessionDate.getTime() - right.sessionDate.getTime());
   const insights = [
     buildSleepInsight(sessions, input.sleepEntries),
     buildPainInsight(sessions, input.rehabEntries, input.hangboardSessions),
@@ -187,6 +247,8 @@ export function buildPerformanceReport(input: ReportInput): PerformanceReport {
     });
   }
 
+  insights.sort((left, right) => Math.abs(parseFloat(right.metricDelta)) - Math.abs(parseFloat(left.metricDelta)));
+
   return {
     reportDate: formatISO(input.reportEnd, { representation: 'date' }),
     windowLabel: `${formatISO(reportStart, { representation: 'date' })} → ${formatISO(input.reportEnd, { representation: 'date' })}`,
@@ -194,6 +256,7 @@ export function buildPerformanceReport(input: ReportInput): PerformanceReport {
     sessionCount: sessions.length,
     averageNormalizedGrade: sessions.length ? average(sessions.map((session) => session.normalizedGrade)) : null,
     insights,
+    weeklyGuidance: buildWeeklyGuidance(sessions, insights[0]),
   };
 }
 

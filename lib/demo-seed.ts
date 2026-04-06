@@ -1,5 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 
+import { DEMO_EMAIL, DEMO_PASSWORD } from '@/lib/auth/constants';
+import { hashPassword } from '@/lib/auth/password';
 import { normalizeGrade } from './grades';
 
 const isoDay = (offset: number) => {
@@ -14,12 +16,23 @@ const strongSessionDays = new Set([-27, -21, -15, -7, -1]);
 const weakSessionDays = new Set([-24, -18, -12, -10, -4]);
 
 export async function seedDemoData(prisma: PrismaClient) {
+  await prisma.authSession.deleteMany();
   await prisma.climbingSession.deleteMany();
   await prisma.sleepEntry.deleteMany();
   await prisma.nutritionEntry.deleteMany();
   await prisma.bodyweightEntry.deleteMany();
   await prisma.hangboardSession.deleteMany();
   await prisma.fingerRehabEntry.deleteMany();
+  await prisma.user.deleteMany();
+
+  const demoUser = await prisma.user.create({
+    data: {
+      email: DEMO_EMAIL,
+      name: 'Demo Climber',
+      isDemo: true,
+      passwordHash: hashPassword(DEMO_PASSWORD),
+    },
+  });
 
   for (let offset = -27; offset <= 0; offset += 1) {
     const entryDate = isoDay(offset);
@@ -32,48 +45,13 @@ export async function seedDemoData(prisma: PrismaClient) {
     const painScore = leadsIntoStrongSession ? 2 : leadsIntoWeakSession ? 6 : 3 + (dayIndex % 2);
     const hydration = leadsIntoStrongSession ? 3.3 : leadsIntoWeakSession ? 1.9 : 2.6;
 
-    await prisma.sleepEntry.create({
-      data: {
-        entryDate,
-        hours: sleepHours,
-        qualityScore: Math.min(10, Math.max(4, Math.round(sleepHours + 1))),
-      },
-    });
-
-    await prisma.nutritionEntry.create({
-      data: {
-        entryDate,
-        proteinGrams,
-        calories: leadsIntoStrongSession ? 2460 : leadsIntoWeakSession ? 2210 : 2320 + (dayIndex % 3) * 60,
-        hydration,
-      },
-    });
-
-    await prisma.bodyweightEntry.create({
-      data: {
-        entryDate,
-        weightLbs: 156 - (dayIndex % 6) * 0.3,
-      },
-    });
-
-    await prisma.fingerRehabEntry.create({
-      data: {
-        entryDate,
-        painScore,
-        rehabCompleted: !leadsIntoWeakSession,
-        notes: painScore >= 6 ? 'Finger felt tweaky after limit session.' : null,
-      },
-    });
+    await prisma.sleepEntry.create({ data: { userId: demoUser.id, entryDate, hours: sleepHours, qualityScore: Math.min(10, Math.max(4, Math.round(sleepHours + 1))) } });
+    await prisma.nutritionEntry.create({ data: { userId: demoUser.id, entryDate, proteinGrams, calories: leadsIntoStrongSession ? 2460 : leadsIntoWeakSession ? 2210 : 2320 + (dayIndex % 3) * 60, hydration } });
+    await prisma.bodyweightEntry.create({ data: { userId: demoUser.id, entryDate, weightLbs: 156 - (dayIndex % 6) * 0.3 } });
+    await prisma.fingerRehabEntry.create({ data: { userId: demoUser.id, entryDate, painScore, rehabCompleted: !leadsIntoWeakSession, notes: painScore >= 6 ? 'Finger felt tweaky after limit session.' : null } });
 
     if (leadsIntoWeakSession || dayIndex % 6 === 0) {
-      await prisma.hangboardSession.create({
-        data: {
-          sessionDate: entryDate,
-          protocolName: leadsIntoWeakSession ? 'Max hangs' : 'Repeaters',
-          durationMinutes: leadsIntoWeakSession ? 30 : 20 + (dayIndex % 2) * 5,
-          intensity: leadsIntoWeakSession ? 8 : 6,
-        },
-      });
+      await prisma.hangboardSession.create({ data: { userId: demoUser.id, sessionDate: entryDate, protocolName: leadsIntoWeakSession ? 'Max hangs' : 'Repeaters', durationMinutes: leadsIntoWeakSession ? 30 : 20 + (dayIndex % 2) * 5, intensity: leadsIntoWeakSession ? 8 : 6 } });
     }
   }
 
@@ -83,6 +61,7 @@ export async function seedDemoData(prisma: PrismaClient) {
     const hardestGrade = grades[index] ?? 'V4';
     await prisma.climbingSession.create({
       data: {
+        userId: demoUser.id,
         sessionDate: isoDay(offset),
         discipline: 'Bouldering',
         hardestGrade,
@@ -92,10 +71,10 @@ export async function seedDemoData(prisma: PrismaClient) {
         sendCount: strongSessionDays.has(offset) ? 5 + index : 2 + index,
         attemptCount: strongSessionDays.has(offset) ? 7 + index : 11 + index * 2,
         durationMinutes: strongSessionDays.has(offset) ? 88 + index * 4 : 96 + index * 5,
-        notes: strongSessionDays.has(offset)
-          ? 'Well-recovered session with good power and skin.'
-          : 'Performance felt limited by fatigue and finger load.',
+        notes: strongSessionDays.has(offset) ? 'Well-recovered session with good power and skin.' : 'Performance felt limited by fatigue and finger load.',
       },
     });
   }
+
+  return demoUser;
 }

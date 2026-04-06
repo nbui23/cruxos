@@ -4,6 +4,8 @@ import { InsightCard } from '@/components/insight-card';
 import { MetricCard } from '@/components/metric-card';
 import { PerformanceChart } from '@/components/performance-chart';
 import { SleepChart } from '@/components/sleep-chart';
+import { WeeklyGuidanceCard } from '@/components/weekly-guidance-card';
+import { requireCurrentUser } from '@/lib/auth/server';
 import { formatDateLong, formatHours } from '@/lib/format';
 import { getDashboardData, getPerformanceReportData } from '@/lib/queries';
 import { buildPerformanceTrend, buildSleepTrend } from '@/lib/reports';
@@ -11,8 +13,10 @@ import { buildPerformanceTrend, buildSleepTrend } from '@/lib/reports';
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const [dashboard, report] = await Promise.all([getDashboardData(), getPerformanceReportData()]);
+  const user = await requireCurrentUser();
+  const [dashboard, report] = await Promise.all([getDashboardData(user.id), getPerformanceReportData(user.id)]);
   const leadInsight = report.insights[0];
+  const weeklyGuidance = report.weeklyGuidance;
 
   return (
     <div className="space-y-8">
@@ -20,27 +24,34 @@ export default async function DashboardPage() {
         <div className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-900/85 to-cyan-950/35 p-8 shadow-2xl shadow-black/30">
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-300">CruxOS</p>
           <h2 className="mt-4 text-4xl font-semibold tracking-tight text-white">
-            Turn raw climbing, recovery, and rehab data into explainable performance insights.
+            This week’s question: what should you repeat or avoid before your next hard session?
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-8 text-slate-300">
-            This app tracks your climbing, sleep, nutrition, and finger-health data — then the 28-day report compares strong vs weak conditions so you can see what is actually helping performance.
+            CruxOS keeps capture fast on mobile, then uses your recent climbing, recovery, and finger-state data to surface
+            evidence-backed guidance only when the sample is strong enough.
           </p>
           <div className="mt-6 rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Start here</p>
-            <p className="mt-2 text-lg font-semibold text-white">The 28-day Performance Insight Report is the main feature.</p>
-            <p className="mt-2 text-sm leading-7 text-slate-300">
-              It compares conditions like higher sleep vs lower sleep, or high finger stress vs controlled load, and quantifies the average grade difference.
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Weekly guidance</p>
+            <p className="mt-2 text-lg font-semibold text-white">{weeklyGuidance.title}</p>
+            <p className="mt-2 text-sm leading-7 text-slate-300">{weeklyGuidance.summary}</p>
+            <p className="mt-4 text-sm leading-7 text-slate-200">{weeklyGuidance.nextStep}</p>
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/reports/performance" className="rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300">
-              Open the insight report
+            <Link
+              href="/reports/performance"
+              className="rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-300"
+            >
+              Open the evidence report
             </Link>
-            <Link href="/log" className="rounded-full border border-white/10 bg-white/[0.02] px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/60 hover:bg-cyan-500/10">
-              Log a new entry
+            <Link
+              href="/log"
+              className="rounded-full border border-white/10 bg-white/[0.02] px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-cyan-400/60 hover:bg-cyan-500/10"
+            >
+              Log a new session
             </Link>
           </div>
         </div>
+
         <div className="rounded-[2rem] border border-white/10 bg-gradient-to-b from-slate-900/95 to-slate-950/80 p-8 shadow-lg shadow-black/20">
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">What the report currently sees</p>
           <h3 className="mt-3 text-2xl font-semibold text-white">{leadInsight?.title ?? report.windowLabel}</h3>
@@ -69,11 +80,29 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Recent sessions" value={String(dashboard.metrics.totalSessions)} helper="Enough sessions to compare stronger vs weaker conditions." />
-        <MetricCard label="Average sleep" value={formatHours(dashboard.metrics.avgSleepHours)} helper="Used to compare higher-sleep vs lower-sleep sessions." />
-        <MetricCard label="Average protein" value={`${Math.round(dashboard.metrics.avgProteinGrams)}g`} helper="Used to compare higher-protein vs lower-protein days." />
-        <MetricCard label="Average finger pain" value={dashboard.metrics.avgPainScore.toFixed(1)} helper="Used to compare high stress vs controlled load." />
+        <MetricCard
+          label="Recent sessions"
+          value={String(dashboard.metrics.totalSessions)}
+          helper="Enough sessions to compare stronger vs weaker conditions."
+        />
+        <MetricCard
+          label="Average sleep"
+          value={formatHours(dashboard.metrics.avgSleepHours)}
+          helper="Used to compare higher-sleep vs lower-sleep sessions."
+        />
+        <MetricCard
+          label="Average protein"
+          value={`${Math.round(dashboard.metrics.avgProteinGrams)}g`}
+          helper="Used to compare higher-protein vs lower-protein days."
+        />
+        <MetricCard
+          label="Average finger pain"
+          value={dashboard.metrics.avgPainScore.toFixed(1)}
+          helper="Used to compare high stress vs controlled load."
+        />
       </section>
+
+      <WeeklyGuidanceCard guidance={weeklyGuidance} />
 
       <section className="grid gap-6 xl:grid-cols-2">
         <PerformanceChart data={buildPerformanceTrend(dashboard.sessions)} />
@@ -85,7 +114,7 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.25em] text-cyan-300">Top insights</p>
-              <h3 className="mt-2 text-2xl font-semibold text-white">The report explains why some sessions are better</h3>
+              <h3 className="mt-2 text-2xl font-semibold text-white">Evidence from your recent sessions</h3>
             </div>
             <Link href="/reports/performance" className="text-sm font-medium text-cyan-300">
               See full report →
@@ -97,12 +126,12 @@ export default async function DashboardPage() {
         </div>
 
         <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-slate-900/90 to-slate-950/80 p-6 shadow-lg shadow-black/20">
-          <h3 className="text-lg font-semibold text-white">What a first-time visitor should notice</h3>
+          <h3 className="text-lg font-semibold text-white">What’s different in beta</h3>
           <ul className="mt-4 space-y-3 text-sm leading-7 text-slate-300">
-            <li>• The app is about habits → performance, not generic fitness logging.</li>
-            <li>• The report is the centerpiece, and it compares conditions directly.</li>
-            <li>• The dashboard previews the strongest current finding immediately.</li>
-            <li>• Manual entry and one anchor metric keep the product realistic and easy to understand.</li>
+            <li>• The product is now account-scoped, so your logging follows you across devices.</li>
+            <li>• Mobile is for capture and weekly review; web stays focused on evidence and analysis.</li>
+            <li>• Recommendations are withheld when recent data is too sparse or one-sided.</li>
+            <li>• The report still uses deterministic, comparison-based logic — no black-box scoring.</li>
           </ul>
         </div>
       </section>

@@ -7,8 +7,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                String            @id @default(cuid())
+  email             String            @unique
+  name              String?
+  isDemo            Boolean           @default(false)
+  passwordHash      String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sessions          AuthSession[]
+  climbingSessions  ClimbingSession[]
+  sleepEntries      SleepEntry[]
+  nutritionEntries  NutritionEntry[]
+  bodyweightEntries BodyweightEntry[]
+  hangboardSessions HangboardSession[]
+  fingerRehabEntries FingerRehabEntry[]
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
 model ClimbingSession {
   id              String   @id @default(cuid())
+  userId          String
   sessionDate     DateTime
   discipline      String?
   gradeScale      String   @default("BOULDER_V")
@@ -21,40 +50,54 @@ model ClimbingSession {
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([sessionDate])
+  @@index([userId, sessionDate])
 }
 
 model SleepEntry {
   id           String   @id @default(cuid())
-  entryDate    DateTime @unique
+  userId       String
+  entryDate    DateTime
   hours        Float
   qualityScore Int?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryDate])
 }
 
 model NutritionEntry {
   id           String   @id @default(cuid())
-  entryDate    DateTime @unique
+  userId       String
+  entryDate    DateTime
   proteinGrams Int
   calories     Int?
-  hydration    Int?
+  hydration    Float?
   notes        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryDate])
 }
 
 model BodyweightEntry {
   id        String   @id @default(cuid())
-  entryDate DateTime @unique
+  userId    String
+  entryDate DateTime
   weightLbs Float
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryDate])
 }
 
 model HangboardSession {
   id              String   @id @default(cuid())
+  userId          String
   sessionDate     DateTime
   protocolName    String
   durationMinutes Int?
@@ -62,16 +105,21 @@ model HangboardSession {
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([sessionDate])
+  @@index([userId, sessionDate])
 }
 
 model FingerRehabEntry {
   id             String   @id @default(cuid())
-  entryDate      DateTime @unique
+  userId         String
+  entryDate      DateTime
   painScore      Int
   rehabCompleted Boolean  @default(false)
   notes          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryDate])
 }

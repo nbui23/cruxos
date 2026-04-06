@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '2mb',
     },
   },
-  outputFileTracingRoot: process.cwd(),
 };
 
 export default nextConfig;

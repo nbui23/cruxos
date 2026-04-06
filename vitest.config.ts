@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['lib/**/*.test.ts', 'components/**/*.test.ts', 'actions/**/*.test.ts'],
+    include: ['lib/**/*.test.ts', 'components/**/*.test.ts', 'actions/**/*.test.ts', 'apps/mobile/**/*.test.ts'],
     coverage: {
       reporter: ['text'],
     },

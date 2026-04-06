@@ -13,7 +13,7 @@ const compat = new FlatCompat({
 const config = [
   ...compat.config(nextVitals),
   {
-    ignores: ['.next/**', 'node_modules/**', 'prisma/dev.db', 'coverage/**', 'src/**'],
+    ignores: ['.next/**', 'node_modules/**', 'prisma/dev.db', 'coverage/**', 'src/**', 'apps/mobile/**', 'test-results/**'],
   },
 ];
 

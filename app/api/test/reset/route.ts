@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
+import { DEMO_EMAIL, DEMO_PASSWORD } from '@/lib/auth/constants';
 import { seedDemoData } from '@/lib/demo-seed';
 
 export async function POST() {
@@ -12,7 +13,7 @@ export async function POST() {
 
   try {
     await seedDemoData(prisma);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, demo: { email: DEMO_EMAIL, password: DEMO_PASSWORD } });
   } finally {
     await prisma.$disconnect();
   }

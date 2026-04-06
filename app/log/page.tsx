@@ -10,20 +10,25 @@ import {
 } from '@/actions/logging';
 import { LoggingForm } from '@/components/logging-form';
 import { RecentTable } from '@/components/recent-table';
+import { requireCurrentUser } from '@/lib/auth/server';
 import { formatDateLong } from '@/lib/format';
 import { getHistoryData } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
 export default async function LogPage() {
-  const history = await getHistoryData();
+  const user = await requireCurrentUser();
+  const history = await getHistoryData(user.id);
 
   return (
     <div className="space-y-8">
       <div>
         <p className="text-sm uppercase tracking-[0.25em] text-cyan-300">Logging hub</p>
-        <h2 className="mt-2 text-3xl font-semibold text-white">Capture the minimum useful data, fast.</h2>
-        <p className="mt-3 max-w-2xl text-sm text-slate-400">Every form is intentionally lightweight so the insight report has enough signal without turning the app into a chore.</p>
+        <h2 className="mt-2 text-3xl font-semibold text-white">Capture quickly now, understand deeply later.</h2>
+        <p className="mt-3 max-w-2xl text-sm text-slate-400">
+          The beta keeps mobile-style capture minimal on purpose: climbing first, then only the smallest recovery and
+          finger-state signals needed for trustworthy guidance.
+        </p>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -33,7 +38,16 @@ export default async function LogPage() {
           action={createClimbingSession}
           fields={[
             { name: 'sessionDate', label: 'Session date', type: 'date', required: true },
-            { name: 'gradeScale', label: 'Grade scale', type: 'select', options: [{ value: 'BOULDER_V', label: 'Boulder (V-scale)' }, { value: 'YDS', label: 'YDS' }, { value: 'FRENCH', label: 'French' }] },
+            {
+              name: 'gradeScale',
+              label: 'Grade scale',
+              type: 'select',
+              options: [
+                { value: 'BOULDER_V', label: 'Boulder (V-scale)' },
+                { value: 'YDS', label: 'YDS' },
+                { value: 'FRENCH', label: 'French' },
+              ],
+            },
             { name: 'hardestGrade', label: 'Hardest grade sent', type: 'text', required: true, placeholder: 'V5' },
             { name: 'discipline', label: 'Discipline', type: 'text', placeholder: 'Bouldering' },
             { name: 'sessionRpe', label: 'Session RPE', type: 'number', min: '1', max: '10' },
@@ -57,7 +71,7 @@ export default async function LogPage() {
 
         <LoggingForm
           title="Nutrition"
-          description="Protein is the key recovery signal for v1."
+          description="Protein is the key recovery signal for vNext guidance."
           action={upsertNutritionEntry}
           fields={[
             { name: 'entryDate', label: 'Date', type: 'date', required: true },
@@ -70,7 +84,7 @@ export default async function LogPage() {
 
         <LoggingForm
           title="Bodyweight"
-          description="One weigh-in per day is enough for the MVP."
+          description="One weigh-in per day is enough for the beta."
           action={upsertBodyweightEntry}
           fields={[
             { name: 'entryDate', label: 'Date', type: 'date', required: true },

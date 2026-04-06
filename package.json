@@ -8,11 +8,15 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
+    "typecheck:mobile": "tsc --noEmit -p apps/mobile/tsconfig.json",
     "test": "vitest run",
+    "test:mobile": "vitest run apps/mobile/src/**/*.test.ts",
     "test:e2e": "playwright test",
+    "mobile:start": "npm --prefix apps/mobile run start",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "mobile:dev": "npm --prefix apps/mobile run start"
   },
   "dependencies": {
     "@prisma/client": "^6.6.0",
